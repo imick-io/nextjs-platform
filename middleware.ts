@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const R_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost:3000";
-const SUFFIX = process.env.NEXT_PUBLIC_VERCEL_DEPLOYMENT_SUFFIX || "vercel.app";
-
 export const config = {
   matcher: [
     /*
@@ -16,22 +13,16 @@ export const config = {
   ],
 };
 
-export default function middleware(req: NextRequest) {
-  const url = req.nextUrl;
-  const pathname = url.pathname;
-  let hostname = req.headers.get("host")!;
-  const sParams = req.nextUrl.searchParams.toString();
+export function middleware(req: NextRequest) {
+  const { pathname, searchParams } = req.nextUrl;
+  const host = req.headers.get("host")!;
+  const sParams = searchParams.toString();
+  const parts = host.split(".");
+  const tenantId = parts.length === 2 ? parts[0] : "";
 
-  // Get the hostname of the request (e.g. demo.vercel.app, demo.localhost:3000, etc.)
-  hostname = hostname.replace(".localhost:3000", `.${R_DOMAIN}`);
-
-  // Handle vercel preview URLs
-  if (hostname.includes("---") && hostname.endsWith(SUFFIX)) {
-    hostname = `${hostname.split("---")}.${R_DOMAIN}`;
-  }
-
-  // Get the pathname of the request (e.g. /about, /docs, /pricing, etc.)
+  // Construct the path of the request
   const path = `${pathname}${sParams.length > 0 ? `?${sParams}` : ""}`;
 
-  return NextResponse.rewrite(new URL(`/${hostname}${path}`, req.url));
+  const absoluteUrl = new URL(`${tenantId}${path}`, req.url);
+  return NextResponse.rewrite(absoluteUrl);
 }
